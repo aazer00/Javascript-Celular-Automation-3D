@@ -1,0 +1,546 @@
+<html>
+
+<head>
+</head>
+<style>
+    .button {
+        border: none;
+        color: white;
+        padding: 15px 32px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        width: 200px;
+    }
+
+    .button2 {
+        background-color: #008CBA;
+    }
+
+    /* Blue */
+</style>
+
+<body>
+    <button class="button button2" id="start">Start</button>
+    <button class="button button2" id="stop">Stop</button>
+
+    <button class="button button2" id="crystal1">Crystal Growth 1</button>
+    <button class="button button2" id="crystal2">Crystal Growth 2</button>
+    <button class="button button2" id="clouds1">Clouds 1</button>
+    <button class="button button2" id="clouds2">Clouds 2</button>
+    <!--button class="button button2" id="445">445</button-->
+    <button class="button button2" id="architecture">Architecture</button>
+    <button class="button button2" id="builder">Builder</button>
+    <button class="button button2" id="stable">Stable</button>
+    <button class="button button2" id="pyroclastic">Pyroclastic</button>
+    <button class="button button2" id="waves">Waves</button>
+
+    <button class="button button2" id="game">Game of Life</button>
+
+    <script type="module">
+
+        import * as THREE from 'https://cdn.skypack.dev/pin/three@v0.136.0-4Px7Kx1INqCFBN0tXUQc/mode=imports/optimized/three.js';
+        import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.121.1/examples/jsm/controls/OrbitControls.js';
+
+        let camera, scene, renderer, stats, light;
+        //renderer = new THREE.WebGLRenderer({ canvas });
+        let mesh;
+        let amount = 70;
+        let count = Math.pow(amount, 3);
+        let dummy = new THREE.Object3D();
+        let state = 5;
+        let pixel_array;
+
+        let scene_time = 0.1;
+        let idx = 0;
+        let processs_continue = false;
+
+
+        //Slow Decay  2 state 2 M
+        let number_of_neighbors_for_survive = [1, 4, 8, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26];
+        let number_of_neighbors_for_born = [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26];
+
+        let select_neightbor_type = 0; // 0 - M 1 - N
+
+        let start_shape = 1// 1 - single, 2 - solid box, 3-random, 4 - collider
+
+
+        let time_limit = 0.01;
+
+        let color_type = 1;
+
+        let rotate_y = 0.1;
+
+        init();
+        animate();
+
+        function init() {
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 300);
+            camera.position.set(amount * 0.9, amount * 0.9, amount * 0.9);
+            camera.lookAt(0, 0, 0);
+
+            const color = 0xFFFFFF;
+            const intensity = 1;
+            //light = new THREE.DirectionalLight(color, intensity);
+            /// light.position.set(-1, 2, 4);
+
+
+            scene = new THREE.Scene();
+            //scene.add(light);
+
+            let boxWidth = 1;
+            let boxHeight = 1;
+            let boxDepth = 1;
+            let geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+
+            /*const material = [
+                new THREE.MeshBasicMaterial({ color: 0x474747 }),
+                new THREE.MeshBasicMaterial({ color: 0x656565 }),
+                new THREE.MeshBasicMaterial({ color: 0x818181 }),
+                new THREE.MeshBasicMaterial({ color: 0x9E9E9E }),
+                new THREE.MeshBasicMaterial({ color: 0xBABABA }),
+                new THREE.MeshBasicMaterial({ color: 0xCACACA }),
+            ];
+
+             
+
+            for (let i = 0; i < geometry.groups.length; i++) {
+                geometry.groups[i].materialIndex = i;
+            }*/
+
+
+
+            const material = new THREE.MeshNormalMaterial();
+
+
+            mesh = new THREE.InstancedMesh(geometry, material, count);
+            mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            scene.add(mesh);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth - 220, window.innerHeight - 70);
+            document.body.appendChild(renderer.domElement);
+
+            window.addEventListener('resize', onWindowResize);
+
+
+            pixel_array = initializeArray(amount, amount, amount, true);
+
+
+            let button_start = document.getElementById("start");
+            button_start.is_continue = 1;
+            button_start.addEventListener("click", changeProcess, false);
+
+            let button_stop = document.getElementById("stop");
+            button_stop.is_continue = 0;
+            button_stop.addEventListener("click", changeProcess, false);
+
+            let button1 = document.getElementById("crystal1");
+            button1.rule = 1;
+            button1.addEventListener("click", changeType, false);
+
+            let button2 = document.getElementById("crystal2");
+            button2.rule = 2;
+            button2.addEventListener("click", changeType, false);
+
+            let button3 = document.getElementById("clouds1");
+            button3.rule = 3;
+            button3.addEventListener("click", changeType, false);
+
+            let button4 = document.getElementById("clouds2");
+            button4.rule = 4;
+            button4.addEventListener("click", changeType, false);
+
+            /*let button5 = document.getElementById("445");
+            button5.rule = 5;
+            button5.addEventListener("click", changeType, false);*/
+
+            let button6 = document.getElementById("architecture");
+            button6.rule = 6;
+            button6.addEventListener("click", changeType, false);
+
+            let button7 = document.getElementById("builder");
+            button7.rule = 7;
+            button7.addEventListener("click", changeType, false);
+
+            let button8 = document.getElementById("stable");
+            button8.rule = 8;
+            button8.addEventListener("click", changeType, false);
+
+            let button9 = document.getElementById("pyroclastic");
+            button9.rule = 9;
+            button9.addEventListener("click", changeType, false);
+
+            let button10 = document.getElementById("waves");
+            button10.rule = 10;
+            button10.addEventListener("click", changeType, false);
+
+            let button11 = document.getElementById("game");
+            button11.rule = 11;
+            button11.addEventListener("click", changeType, false);
+
+        }
+
+
+        function animate(time) {
+            time = time * 0.001;
+            //console.log(time);
+            if (time > time_limit) {
+                render();
+                if (processs_continue == true)
+                    pixel_array = calculateNextGeneration();
+                time_limit += 0.01;
+                //console.log(pixel_array);
+            }
+            requestAnimationFrame(animate);
+        }
+
+        function onWindowResize() {
+
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+
+
+        }
+
+        function render() {
+
+            if (mesh) {
+
+                const time = Date.now() * 0.001;
+
+                //mesh.rotation.x = Math.sin(time / 4);
+                mesh.rotation.y = rotate_y;//Math.sin(time / 2);
+                //light.rotation.y = -Math.sin(time / 2);
+                //rotate_y += 0.1;
+
+
+                let i = 0;
+                const offset = (amount - 1) / 2;
+
+                for (let x = 0; x < amount; x++) {
+
+                    for (let y = 0; y < amount; y++) {
+
+                        for (let z = 0; z < amount; z++) {
+
+                            if (processs_continue == true) {
+                                if (pixel_array[x][y][z] != 0)
+                                    dummy.position.set(offset - x, offset - y, offset - z);
+                                else
+                                    dummy.position.set(offset - x, offset - y, 500);
+
+
+                                dummy.updateMatrix();
+
+                                mesh.setMatrixAt(i++, dummy.matrix);
+                            }
+
+                        }
+
+                    }
+
+                }
+
+                mesh.instanceMatrix.needsUpdate = true;
+
+            }
+
+            renderer.render(scene, camera);
+
+        }
+
+
+        function initializeArray(n_row, n_col, dep, randomize = false) {
+            let res_arr = new Array(n_row);
+            for (let i = 0; i < res_arr.length; i++) {
+                res_arr[i] = new Array(n_col);
+                for (let j = 0; j < res_arr[i].length; j++) {
+
+                    res_arr[i][j] = new Array(dep);
+
+                    for (let z = 0; z < res_arr[i][j].length; z++) {
+                        if (start_shape == 3)
+                            res_arr[i][j][z] = Math.floor(Math.random() * state);
+                        else if (start_shape == 6)
+                            res_arr[i][j][z] = state;
+                        else
+                            res_arr[i][j][z] = 0;
+                    }
+                }
+            }
+            if (start_shape == 7) {
+                for (let i = 0; i < 40; i++) {
+                    res_arr[Math.floor(Math.random() * 40)][Math.floor(Math.random() * 40)][Math.floor(Math.random() * 40)] = state - 1
+                }
+
+            }
+
+            if (start_shape == 2) {
+                for (let i = -2; i < 3; i++) {
+                    for (let j = -2; j < 3; j++) {
+                        for (let z = -2; z < 3; z++) {
+                            res_arr[Math.floor(n_row / 2) + i][Math.floor(n_row / 2) + j][Math.floor(n_row / 2) + z] = state - 1
+
+                        }
+                    }
+                }
+            }
+            else if (start_shape == 1) {
+                res_arr[Math.floor(n_row / 2)][Math.floor(n_row / 2)][Math.floor(n_row / 2)] = state - 1
+            }
+            else if (start_shape == 4)
+                for (let i = -2; i < 3; i++) {
+                    for (let j = -2; j < 3; j++) {
+                        for (let z = -2; z < 3; z++) {
+                            if (z + i + j != 0)
+                                res_arr[Math.floor(n_row / 2) + i][Math.floor(n_row / 2) + j][Math.floor(n_row / 2) + z] = state - 1
+                        }
+                    }
+                }
+            else if (start_shape == 5)
+                for (let i = Math.floor(amount * 0.6); i < amount - Math.floor(amount * 0.1); i++) {
+                    for (let j = Math.floor(amount * 0.6); j < amount - Math.floor(amount * 0.1); j++) {
+                        for (let z = Math.floor(amount * 0.6); z < amount - Math.floor(amount * 0.1); z++) {
+                            res_arr[i][j][z] = Math.floor(Math.random() * state);
+                        }
+                    }
+                }
+
+            return res_arr;
+        }
+
+        function initializeEmptyArray(n_row, n_col, dep) {
+            let res_arr = new Array(n_row);
+            for (let i = 0; i < res_arr.length; i++) {
+                res_arr[i] = new Array(n_col);
+                for (let j = 0; j < res_arr[i].length; j++) {
+
+                    res_arr[i][j] = new Array(dep);
+
+                    for (let z = 0; z < res_arr[i][j].length; z++) {
+
+                        res_arr[i][j][z] = 0;
+
+                    }
+                }
+            }
+
+
+
+            return res_arr;
+        }
+        let dx = 1
+        let speed = 1;
+
+
+
+        function calculateNextGeneration() {
+            let next_array = initializeEmptyArray(amount, amount, amount);
+
+            for (let i = 0; i < amount; i++) {
+                for (let j = 0; j < amount; j++) {
+                    for (let z = 0; z < amount; z++) {
+
+                        let number_of_connected_cubes = 0
+
+                        if (select_neightbor_type == 0)
+                            number_of_connected_cubes = countConnectedCubes(i, j, z);
+                        else
+                            number_of_connected_cubes = countConnectedCubesNeumann(i, j, z);
+
+                        /*if (idx < 2)
+                            console.log(number_of_connected_cubes + " " + i + " " + j + " " + z);*/
+
+                        let current_pixel = pixel_array[i][j][z];
+
+                        if (current_pixel == 0 && number_of_neighbors_for_born.includes(number_of_connected_cubes)) {
+
+                            next_array[i][j][z] = state - 1;
+                        }
+                        else if (current_pixel == state - 1 && number_of_neighbors_for_survive.includes(number_of_connected_cubes)) {
+                            next_array[i][j][z] = state - 1;
+                        }
+                        else {
+                            next_array[i][j][z] = current_pixel - 1;
+                            if (next_array[i][j][z] < 0)
+                                next_array[i][j][z] = 0;
+                            //if (current_pixel == 1) next_array[i][j][z] = 1; else next_array[i][j][z] = 1;
+                        }
+                    }
+                }
+            }
+
+            return next_array;
+        }
+
+        function countConnectedCubes(x, y, d) {
+            let sum = 0;
+
+            for (let i = -1; i < 2; i++) {
+                for (let j = -1; j < 2; j++) {
+                    for (let z = -1; z < 2; z++) {
+                        if (x + i > -1 && x + i < amount && y + j > -1 && y + j < amount && d + z > -1 && d + z < amount) {
+                            if (pixel_array[x + i][y + j][z + d] == state - 1) {
+                                if (!(i == 0 && j == 0 && z == 0))
+                                    sum += 1;
+                            }
+                        }
+
+                    }
+                }
+            }
+
+            return sum;
+
+        }
+
+        function countConnectedCubesNeumann(x, y, d) {
+            let sum = 0;
+
+            for (let i = -1; i < 2; i++) {
+                for (let j = -1; j < 2; j++) {
+                    for (let z = -1; z < 2; z++) {
+
+                        if (x + i > -1 && x + i < amount && y + j > -1 && y + j < amount && d + z > -1 && d + z < amount) {
+                            if (pixel_array[x + i][y + j][d + z] != 0) {
+                                if (!(i == 0 && j == 0 && z == 0))
+                                    if (z * i * j == 0)
+                                        if ((z != 0 && i == 0 && j == 0) || (z == 0 && j != 0 && i == 0) || (i != 0 && j == 0 && z == 0))
+                                            sum += 1;
+                            }
+                        }
+
+                    }
+                }
+            }
+
+            return sum;
+
+        }
+
+        function changeType(event) {
+            if (event.currentTarget.rule == 1) {
+                number_of_neighbors_for_survive = [0, 1, 2, 3, 4, 5, 6];
+                number_of_neighbors_for_born = [1, 3];
+                select_neightbor_type = 1;
+                state = 2;
+                start_shape = 1;
+                pixel_array = initializeArray(amount, amount, amount, true);
+            }
+
+            if (event.currentTarget.rule == 2) {
+                number_of_neighbors_for_survive = [1, 2];
+                number_of_neighbors_for_born = [1, 3];
+                select_neightbor_type = 1;
+                state = 5;
+                start_shape = 1;
+                pixel_array = initializeArray(amount, amount, amount, true);
+            }
+            if (event.currentTarget.rule == 3) {
+                number_of_neighbors_for_survive = [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26];
+                number_of_neighbors_for_born = [13, 14, 17, 18, 19];
+                select_neightbor_type = 0;
+                state = 2;
+                start_shape = 3;
+                pixel_array = initializeArray(amount, amount, amount, true);
+            }
+
+            if (event.currentTarget.rule == 4) {
+                number_of_neighbors_for_survive = [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26];
+                number_of_neighbors_for_born = [13, 14];
+                select_neightbor_type = 0;
+                state = 2;
+                start_shape = 3;
+                pixel_array = initializeArray(amount, amount, amount, true);
+            }
+
+            /*if (event.currentTarget.rule == 5) {
+                number_of_neighbors_for_survive = [4];
+                number_of_neighbors_for_born = [4];
+                select_neightbor_type = 0;
+                state = 5;
+                start_shape = 6;
+                pixel_array = initializeArray(amount, amount, amount, true);
+            }*/
+
+            if (event.currentTarget.rule == 6) {
+                number_of_neighbors_for_survive = [4, 5, 6];
+                number_of_neighbors_for_born = [2];
+                select_neightbor_type = 0;
+                state = 2;
+                start_shape = 2;
+                pixel_array = initializeArray(amount, amount, amount, true);
+            }
+
+            if (event.currentTarget.rule == 7) {
+                number_of_neighbors_for_survive = [5, 6, 7];
+                number_of_neighbors_for_born = [1];
+                select_neightbor_type = 0;
+                state = 2;
+                start_shape = 1;
+                pixel_array = initializeArray(amount, amount, amount, true);
+            }
+
+            if (event.currentTarget.rule == 8) {
+                number_of_neighbors_for_survive = [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26];
+                number_of_neighbors_for_born = [14, 17, 18, 19];
+                select_neightbor_type = 0;
+                state = 2;
+                start_shape = 6;
+                pixel_array = initializeArray(amount, amount, amount, true);
+            }
+
+            if (event.currentTarget.rule == 9) {
+                number_of_neighbors_for_survive = [4, 5, 6, 7];
+                number_of_neighbors_for_born = [6, 7, 8];
+                select_neightbor_type = 0;
+                state = 10;
+                start_shape = 2;
+                pixel_array = initializeArray(amount, amount, amount, true);
+            }
+
+            if (event.currentTarget.rule == 10) {
+                number_of_neighbors_for_survive = [3];
+                number_of_neighbors_for_born = [1, 3];
+                select_neightbor_type = 0;
+                state = 10;
+                start_shape = 1;
+                pixel_array = initializeArray(amount, amount, amount, true);
+            }
+
+            if (event.currentTarget.rule == 11) {
+                number_of_neighbors_for_survive = [4];
+                number_of_neighbors_for_born = [4];
+                select_neightbor_type = 0;
+                state = 5;
+                start_shape = 3;
+                pixel_array = initializeArray(amount, amount, amount, true);
+            }
+
+
+
+        }
+
+        function changeProcess(event) {
+
+            if (event.currentTarget.is_continue == 1) {
+                processs_continue = 1;
+            }
+            else {
+                processs_continue = 0;
+            }
+
+        }
+
+    </script>
+</body>
+
+</html>
