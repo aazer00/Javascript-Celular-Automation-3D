@@ -12,4 +12,4 @@ Technologies: HTML, JavaScript, THREE.js <br/>
 ### Game of Life 1
 ![](gifs/game1.gif)
 ### Game of Life 2
-![](gifs/game2.gif)
+![](gifs/game2.gif) 
